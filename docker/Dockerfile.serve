@@ -1,0 +1,26 @@
+# Serving image — inference only, non-root, health-checked
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install inference dependencies (no training libs)
+COPY requirements/serve.txt ./requirements/serve.txt
+RUN pip install --no-cache-dir -r requirements/serve.txt
+
+# Copy only the source files needed for serving
+COPY src/model.py ./src/model.py
+COPY src/serve.py ./src/serve.py
+
+# Create non-root user and own /app
+RUN adduser --disabled-password --gecos "" appuser \
+    && chown -R appuser:appuser /app
+USER appuser
+
+ENV PYTHONUNBUFFERED=1
+
+EXPOSE 8080
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')" || exit 1
+
+ENTRYPOINT ["uvicorn", "src.serve:app", "--host", "0.0.0.0", "--port", "8080"]
