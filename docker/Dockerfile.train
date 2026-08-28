@@ -1,0 +1,20 @@
+# Stage 1: base — install pinned dependencies
+FROM python:3.11-slim AS base
+
+WORKDIR /app
+
+# Install deps first for layer caching
+COPY requirements/train.txt ./requirements/train.txt
+RUN pip install --no-cache-dir -r requirements/train.txt
+
+# Stage 2: training runtime — copy source only
+FROM base AS training
+
+COPY src/ ./src/
+COPY configs/ ./configs/
+
+ENV PYTHONUNBUFFERED=1
+# Config can be overridden by mounting a volume at /app/configs
+# or by setting CONFIG_PATH env var (read by train.py)
+
+ENTRYPOINT ["python", "src/train.py"]
